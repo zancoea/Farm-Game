@@ -1,14 +1,14 @@
 # Farm-Game
 
-random animal movement
-inventory and hotbar system
-npc/animal hotkey interaction
-plot claiming
-proper tool usage
-selling of crops
-price adjustment
-player sprite to usage of asset
-time system adjustment
-lock and sellable plot
+random animal movement <br>
+inventory and hotbar system <br>
+npc/animal hotkey interaction <br>
+plot claiming <br>
+proper tool usage <br>
+selling of crops <br>
+price adjustment <br>
+player sprite to usage of asset <br>
+time system adjustment <br>
+lock and sellable plot <br>
 
 01/03/26
