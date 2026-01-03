@@ -116,8 +116,10 @@ class NPC(pygame.sprite.Sprite):
             box_x = self.rect.centerx - box_width // 2
             box_y = self.rect.top - box_height - 10
             
-            # Keep on screen
-            box_x = max(5, min(box_x, SCREEN_WIDTH - box_width - 5))
+            # Keep on screen (use world surface dimensions)
+            world_width = TILE_SIZE * MAP_WIDTH
+            world_height = TILE_SIZE * MAP_HEIGHT
+            box_x = max(5, min(box_x, world_width - box_width - 5))
             box_y = max(5, box_y)
             
             # Draw box
@@ -151,15 +153,15 @@ class NPC(pygame.sprite.Sprite):
             surface.blit(label_bg, (label_x, label_y))
             surface.blit(label, (label_x + 3, label_y + 2))
     
-    def draw_shop_menu(self, surface):
+    def draw_shop_menu(self, surface, screen_width, screen_height):
         """Draw the initial shop menu with Buy/Sell options"""
         if self.shop_mode != 'menu':
             return
         
         menu_width = 400
         menu_height = 280
-        menu_x = (SCREEN_WIDTH - menu_width) // 2
-        menu_y = (SCREEN_HEIGHT - menu_height) // 2
+        menu_x = (screen_width - menu_width) // 2
+        menu_y = (screen_height - menu_height) // 2
         
         # Background
         bg = pygame.Surface((menu_width, menu_height))
@@ -200,7 +202,7 @@ class NPC(pygame.sprite.Sprite):
         close_text = self.font.render("Right-click or ESC to close", True, GRAY)
         surface.blit(close_text, (menu_x + 20, menu_y + menu_height - 30))
     
-    def draw_buy_menu(self, surface, player_money):
+    def draw_buy_menu(self, surface, player_money, screen_width, screen_height):
         """Draw the buy seeds menu"""
         if self.shop_mode != 'buy':
             return
@@ -209,8 +211,8 @@ class NPC(pygame.sprite.Sprite):
         
         menu_width = 400
         menu_height = 380
-        menu_x = (SCREEN_WIDTH - menu_width) // 2
-        menu_y = (SCREEN_HEIGHT - menu_height) // 2
+        menu_x = (screen_width - menu_width) // 2
+        menu_y = (screen_height - menu_height) // 2
         
         # Background
         bg = pygame.Surface((menu_width, menu_height))
@@ -265,7 +267,7 @@ class NPC(pygame.sprite.Sprite):
         instructions = self.font.render("Click item to buy", True, WHITE)
         surface.blit(instructions, (menu_x + 20, menu_y + menu_height - 30))
     
-    def draw_sell_menu(self, surface, inventory, player_money):
+    def draw_sell_menu(self, surface, inventory, player_money, screen_width, screen_height):
         """Draw the sell crops menu"""
         if self.shop_mode != 'sell':
             return
@@ -275,8 +277,8 @@ class NPC(pygame.sprite.Sprite):
         
         menu_width = 450
         menu_height = 450
-        menu_x = (SCREEN_WIDTH - menu_width) // 2
-        menu_y = (SCREEN_HEIGHT - menu_height) // 2
+        menu_x = (screen_width - menu_width) // 2
+        menu_y = (screen_height - menu_height) // 2
         
         # Background
         bg = pygame.Surface((menu_width, menu_height))
@@ -380,15 +382,14 @@ class NPC(pygame.sprite.Sprite):
         
         return sellable
     
-    def handle_shop_click(self, pos, player, inventory):
+    def handle_shop_click(self, pos, player, inventory, screen_width, screen_height):
         """Handle clicks in shop interface - returns (action, result, message)"""
         menu_width = 400
-        menu_x = (SCREEN_WIDTH - menu_width) // 2
-        menu_y = (SCREEN_HEIGHT - 280) // 2
+        menu_x = (screen_width - menu_width) // 2
         
         # Handle menu selection
         if self.shop_mode == 'menu':
-            menu_y = (SCREEN_HEIGHT - 280) // 2
+            menu_y = (screen_height - 280) // 2
             buy_rect = pygame.Rect(menu_x + 40, menu_y + 100, menu_width - 80, 50)
             sell_rect = pygame.Rect(menu_x + 40, menu_y + 165, menu_width - 80, 50)
             
@@ -401,7 +402,7 @@ class NPC(pygame.sprite.Sprite):
         
         # Handle buy menu
         elif self.shop_mode == 'buy':
-            menu_y = (SCREEN_HEIGHT - 380) // 2
+            menu_y = (screen_height - 380) // 2
             shop_items = self.get_shop_items()
             
             # Check back button
@@ -429,8 +430,8 @@ class NPC(pygame.sprite.Sprite):
         # Handle sell menu
         elif self.shop_mode == 'sell':
             menu_width = 450
-            menu_x = (SCREEN_WIDTH - menu_width) // 2
-            menu_y = (SCREEN_HEIGHT - 450) // 2
+            menu_x = (screen_width - menu_width) // 2
+            menu_y = (screen_height - 450) // 2
             sellable_items = self.get_sellable_items(inventory)
             
             # Check back button

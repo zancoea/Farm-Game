@@ -15,12 +15,22 @@ from plot_system import PlotSystem
 class FarmGame:
     def __init__(self):
         pygame.init()
-        self.screen = pygame.display.set_mode((SCREEN_WIDTH, SCREEN_HEIGHT))
+        self.screen = pygame.display.set_mode((DEFAULT_SCREEN_WIDTH, DEFAULT_SCREEN_HEIGHT), 
+                                              pygame.RESIZABLE)
         pygame.display.set_caption("Pixel Farm - Harvest Valley")
         self.clock = pygame.time.Clock()
         
+        # Track current window size
+        self.screen_width = DEFAULT_SCREEN_WIDTH
+        self.screen_height = DEFAULT_SCREEN_HEIGHT
+        
+        # Create world surface (fixed size for game world)
+        self.world_width = TILE_SIZE * MAP_WIDTH
+        self.world_height = TILE_SIZE * MAP_HEIGHT
+        self.world_surface = pygame.Surface((self.world_width, self.world_height))
+        
         # Game objects
-        self.player = Player((SCREEN_WIDTH // 2, SCREEN_HEIGHT // 2 ))
+        self.player = Player((self.world_width // 2, self.world_height // 2))
         self.world = World()
         self.world.create_default_map()
         
@@ -33,12 +43,12 @@ class FarmGame:
         # NPCs
         self.npcs = pygame.sprite.Group()
         self.shopkeeper = NPC((100, 150), "shopkeeper")
-        self.mayor = NPC((SCREEN_WIDTH - 100, 150), "mayor")
+        self.mayor = NPC((self.world_width - 100, 150), "mayor")
         self.npcs.add(self.shopkeeper, self.mayor)
         
         # Show welcome message
         self.show_notification("Welcome! Press F near Shopkeeper to trade!")
-        self.notification_timer = 300  # Show for 5 seconds
+        self.notification_timer = 300
         
         # Systems
         self.inventory = Inventory()
@@ -56,9 +66,59 @@ class FarmGame:
         # Interaction
         self.nearby_npc = None
         self.nearby_animal = None
-        self.interaction_distance = 60  # Pixel distance for F key interaction
+        self.interaction_distance = 60
         
         self.font = pygame.font.Font(None, 24)
+        
+        # Settings button rect
+        self.settings_button_rect = None
+        
+    def handle_resize(self, width, height):
+        """Handle window resize event"""
+        self.screen_width = max(MIN_SCREEN_WIDTH, width)
+        self.screen_height = max(MIN_SCREEN_HEIGHT, height)
+        self.screen = pygame.display.set_mode((self.screen_width, self.screen_height), 
+                                              pygame.RESIZABLE)
+        # Update global settings
+        update_screen_size(self.screen_width, self.screen_height)
+        
+    def screen_to_world_pos(self, screen_pos):
+        """Convert screen position to world position"""
+        # Calculate scale to fit world in window
+        scale_x = self.screen_width / self.world_width
+        scale_y = self.screen_height / self.world_height
+        scale = min(scale_x, scale_y)
+        
+        # Calculate scaled dimensions and offset
+        scaled_width = int(self.world_width * scale)
+        scaled_height = int(self.world_height * scale)
+        offset_x = (self.screen_width - scaled_width) // 2
+        offset_y = (self.screen_height - scaled_height) // 2
+        
+        # Adjust for world offset
+        adjusted_x = screen_pos[0] - offset_x
+        adjusted_y = screen_pos[1] - offset_y
+        
+        # Scale to world coordinates
+        world_x = adjusted_x / scale
+        world_y = adjusted_y / scale
+        
+        return (int(world_x), int(world_y))
+    
+    def is_click_in_world(self, screen_pos):
+        """Check if a screen position is within the world area"""
+        scale_x = self.screen_width / self.world_width
+        scale_y = self.screen_height / self.world_height
+        scale = min(scale_x, scale_y)
+        
+        scaled_width = int(self.world_width * scale)
+        scaled_height = int(self.world_height * scale)
+        offset_x = (self.screen_width - scaled_width) // 2
+        offset_y = (self.screen_height - scaled_height) // 2
+        
+        x, y = screen_pos
+        return (offset_x <= x < offset_x + scaled_width and
+                offset_y <= y < offset_y + scaled_height)
         
     def handle_events(self):
         """Handle all game events"""
@@ -67,6 +127,9 @@ class FarmGame:
                 self.save_game()
                 pygame.quit()
                 sys.exit()
+                
+            elif event.type == pygame.VIDEORESIZE:
+                self.handle_resize(event.w, event.h)
                 
             elif event.type == pygame.KEYDOWN:
                 # F key - Interact with nearby NPCs/Animals
@@ -78,15 +141,17 @@ class FarmGame:
                 
                 # L key - Toggle plot lock at mouse position
                 elif event.key == pygame.K_l:
-                    mouse_pos = pygame.mouse.get_pos()
-                    grid_x = mouse_pos[0] // TILE_SIZE
-                    grid_y = mouse_pos[1] // TILE_SIZE
-                    grid_pos = (grid_x, grid_y)
-                    
-                    if self.plot_system.is_claimed(grid_pos):
-                        success, message = self.plot_system.toggle_lock(grid_pos)
-                        if message:
-                            self.show_notification(message)
+                    screen_pos = pygame.mouse.get_pos()
+                    if self.is_click_in_world(screen_pos):
+                        world_pos = self.screen_to_world_pos(screen_pos)
+                        grid_x = world_pos[0] // TILE_SIZE
+                        grid_y = world_pos[1] // TILE_SIZE
+                        grid_pos = (grid_x, grid_y)
+                        
+                        if self.plot_system.is_claimed(grid_pos):
+                            success, message = self.plot_system.toggle_lock(grid_pos)
+                            if message:
+                                self.show_notification(message)
                 
                 # Tool selection
                 elif event.key == pygame.K_t:
@@ -127,9 +192,14 @@ class FarmGame:
             elif event.type == pygame.MOUSEBUTTONDOWN:
                 mouse_pos = pygame.mouse.get_pos()
                 
+                # Check settings button click
+                if self.settings_button_rect and self.settings_button_rect.collidepoint(mouse_pos) and event.button == 1:
+                    self.ui.toggle_controls()
+                    continue
+                
                 # Handle inventory clicks first
                 if self.inventory.show_full_inventory and event.button == 1:
-                    if self.inventory.handle_inventory_click(mouse_pos):
+                    if self.inventory.handle_inventory_click(mouse_pos, self.screen_width, self.screen_height):
                         continue
                 
                 # Don't process tool/interact clicks if inventory is open
@@ -138,28 +208,31 @@ class FarmGame:
                 
                 # Handle crafting menu clicks
                 if self.crafting.show_menu and event.button == 1:
-                    if self.crafting.handle_click(mouse_pos, self.inventory):
+                    if self.crafting.handle_click(mouse_pos, self.inventory, self.screen_width, self.screen_height):
                         self.show_notification("Item crafted!")
                         
                 # Handle shop clicks
                 elif self.shopkeeper.shop_mode and event.button == 1:
                     action, result, message = self.shopkeeper.handle_shop_click(
-                        mouse_pos, self.player, self.inventory
+                        mouse_pos, self.player, self.inventory, self.screen_width, self.screen_height
                     )
                     if message:
                         self.show_notification(message)
                     
-                # Left click - use tool
+                # Left click - use tool (only if clicking in world area)
                 elif event.button == 1 and not self.crafting.show_menu:
-                    self.use_tool(mouse_pos)
+                    if self.is_click_in_world(mouse_pos):
+                        world_pos = self.screen_to_world_pos(mouse_pos)
+                        self.use_tool(world_pos)
                     
                 # Right click - claim or sell plots
                 elif event.button == 3:
                     if self.shopkeeper.shop_mode:
                         self.shopkeeper.shop_mode = None
-                    else:
-                        grid_x = mouse_pos[0] // TILE_SIZE
-                        grid_y = mouse_pos[1] // TILE_SIZE
+                    elif self.is_click_in_world(mouse_pos):
+                        world_pos = self.screen_to_world_pos(mouse_pos)
+                        grid_x = world_pos[0] // TILE_SIZE
+                        grid_y = world_pos[1] // TILE_SIZE
                         grid_pos = (grid_x, grid_y)
                         
                         # Check if plot is already claimed - if so, try to sell
@@ -199,19 +272,24 @@ class FarmGame:
     def interact_with_npc(self, npc):
         """Interact with an NPC"""
         dialogue = npc.talk()
-        # Shop is now handled through the NPC's shop_mode
     
     def interact_with_animal(self, animal):
         """Interact with an animal"""
-        # Try to collect product first
-        product, value = animal.collect_product()
-        if product:
-            self.inventory.add_item(product, 1)
-            self.show_notification(f"Collected {product}! Sell to shopkeeper!")
+        # Check animal state and respond accordingly
+        if animal.can_collect():
+            # Collect product
+            product, value = animal.collect_product()
+            if product:
+                self.inventory.add_item(product, 1)
+                self.show_notification(f"Collected {product}! You can now feed the animal again!")
+        elif animal.can_feed():
+            # Feed the animal
+            if animal.feed():
+                self.show_notification(f"Fed {animal.animal_type}! Wait for digestion.")
         else:
-            # Feed animal if no product
-            animal.feed()
-            self.show_notification(f"Fed {animal.animal_type}!")
+            # Animal is in cooldown or producing
+            state_info = animal.get_state_info()
+            self.show_notification(f"{animal.animal_type.title()}: {state_info}")
                         
     def use_tool(self, pos):
         """Use the currently equipped tool"""
@@ -249,7 +327,7 @@ class FarmGame:
                         # Refund seed if planting failed
                         self.inventory.add_item(seed_name, 1)
             else:
-                # Try to harvest - NO direct money, just add to inventory
+                # Try to harvest
                 crop_type, value = self.world.harvest(pos)
                 if crop_type:
                     self.inventory.add_item(crop_type, 1)
@@ -271,7 +349,7 @@ class FarmGame:
     def show_notification(self, message):
         """Show a notification message"""
         self.notification = message
-        self.notification_timer = 120  # 2 seconds at 60 FPS
+        self.notification_timer = 120
         
     def update(self, dt):
         """Update all game systems"""
@@ -304,86 +382,114 @@ class FarmGame:
                 
     def draw(self):
         """Draw everything"""
-        # Clear screen
+        # Clear screen with black
         self.screen.fill(BLACK)
         
-        # Draw world
-        self.world.tiles.draw(self.screen)
+        # Draw world to world surface
+        self.world_surface.fill(BLACK)
+        self.world.tiles.draw(self.world_surface)
         
         # Draw claimed plot indicators
-        self.plot_system.draw_claimed_indicators(self.screen)
+        self.plot_system.draw_claimed_indicators(self.world_surface)
         
         # Draw grid if enabled
         if self.show_grid:
-            self.world.draw_grid(self.screen)
+            self.world.draw_grid(self.world_surface)
             
         # Draw crops
-        self.world.crops.draw(self.screen)
+        self.world.crops.draw(self.world_surface)
         
         # Draw crop status indicators
         for crop in self.world.crops:
-            crop.draw_status(self.screen)
+            crop.draw_status(self.world_surface)
         
         # Draw animals
-        self.animals.draw(self.screen)
+        self.animals.draw(self.world_surface)
         for animal in self.animals:
-            animal.draw_status(self.screen)
+            animal.draw_status(self.world_surface)
             
         # Draw NPCs
-        self.npcs.draw(self.screen)
+        self.npcs.draw(self.world_surface)
         for npc in self.npcs:
-            npc.draw_label(self.screen)
-            npc.draw_dialogue(self.screen)
+            npc.draw_label(self.world_surface)
+            npc.draw_dialogue(self.world_surface)
             
         # Draw player
-        self.screen.blit(self.player.image, self.player.rect)
+        self.world_surface.blit(self.player.image, self.player.rect)
         
-        # Draw interaction prompt
+        # Draw interaction prompt (in world space)
         if self.nearby_npc:
-            self.draw_interaction_prompt(self.nearby_npc.rect.centerx, self.nearby_npc.rect.top - 30, 
-                                        f"Press [F] to talk to {self.nearby_npc.npc_type.title()}")
+            self.draw_interaction_prompt_world(self.world_surface, 
+                                              self.nearby_npc.rect.centerx, 
+                                              self.nearby_npc.rect.top - 30, 
+                                              f"Press [F] to talk to {self.nearby_npc.npc_type.title()}")
         elif self.nearby_animal:
-            action = "Collect" if self.nearby_animal.has_product else "Feed"
-            self.draw_interaction_prompt(self.nearby_animal.rect.centerx, self.nearby_animal.rect.top - 30,
-                                        f"Press [F] to {action}")
+            if self.nearby_animal.can_collect():
+                action = "Collect"
+            elif self.nearby_animal.can_feed():
+                action = "Feed"
+            else:
+                action = "Check"
+            self.draw_interaction_prompt_world(self.world_surface,
+                                              self.nearby_animal.rect.centerx, 
+                                              self.nearby_animal.rect.top - 30,
+                                              f"Press [F] to {action}")
         
-        # Draw claimable/sellable plot hint (only if inventory not open)
+        # Draw claimable/sellable plot hint (only if inventory not open) - in world space
         if not self.inventory.show_full_inventory:
-            mouse_pos = pygame.mouse.get_pos()
-            self.plot_system.draw_claimable_hint(self.screen, mouse_pos, self.world, self.player)
+            screen_mouse_pos = pygame.mouse.get_pos()
+            if self.is_click_in_world(screen_mouse_pos):
+                world_mouse_pos = self.screen_to_world_pos(screen_mouse_pos)
+                self.plot_system.draw_claimable_hint(self.world_surface, world_mouse_pos, self.world, self.player)
         
         # Apply darkness for night
         if self.time_system.is_night():
-            darkness = pygame.Surface((SCREEN_WIDTH, SCREEN_HEIGHT))
+            darkness = pygame.Surface((self.world_width, self.world_height))
             darkness.set_alpha(self.time_system.get_darkness_alpha())
             darkness.fill((0, 0, 40))
-            self.screen.blit(darkness, (0, 0))
-            
-        # Draw UI
+            self.world_surface.blit(darkness, (0, 0))
+        
+        # Scale world to fill window while maintaining aspect ratio
+        scale_x = self.screen_width / self.world_width
+        scale_y = self.screen_height / self.world_height
+        scale = min(scale_x, scale_y)
+        
+        scaled_width = int(self.world_width * scale)
+        scaled_height = int(self.world_height * scale)
+        offset_x = (self.screen_width - scaled_width) // 2
+        offset_y = (self.screen_height - scaled_height) // 2
+        
+        scaled_surface = pygame.transform.scale(self.world_surface, (scaled_width, scaled_height))
+        self.screen.blit(scaled_surface, (offset_x, offset_y))
+        
+        # Draw UI elements (screen space)
         self.ui.draw_player_stats(self.screen, self.player, self.time_system)
-        self.ui.draw_controls(self.screen)
+        self.ui.draw_controls(self.screen, self.screen_width, self.screen_height)
         
         # Draw inventory (hotbar always visible, full inventory when toggled)
-        self.inventory.draw(self.screen)
+        self.inventory.draw(self.screen, self.screen_width, self.screen_height)
         
         # Draw crafting menu
-        self.crafting.draw_menu(self.screen, self.inventory)
+        self.crafting.draw_menu(self.screen, self.inventory, self.screen_width, self.screen_height)
         
         # Draw shop menus
         if self.shopkeeper.shop_mode:
-            self.shopkeeper.draw_shop_menu(self.screen)
-            self.shopkeeper.draw_buy_menu(self.screen, self.player.money)
-            self.shopkeeper.draw_sell_menu(self.screen, self.inventory, self.player.money)
+            self.shopkeeper.draw_shop_menu(self.screen, self.screen_width, self.screen_height)
+            self.shopkeeper.draw_buy_menu(self.screen, self.player.money, self.screen_width, self.screen_height)
+            self.shopkeeper.draw_sell_menu(self.screen, self.inventory, self.player.money, self.screen_width, self.screen_height)
                 
         # Draw notification
         if self.notification:
-            self.ui.draw_notification(self.screen, self.notification)
+            self.ui.draw_notification(self.screen, self.notification, self.screen_width, self.screen_height)
+        
+        # Draw settings button (always on top)
+        self.settings_button_rect = self.ui.draw_settings_button(self.screen, self.screen_width, self.screen_height)
             
         # Update display
         pygame.display.flip()
     
-    def draw_interaction_prompt(self, x, y, text):
-        """Draw interaction prompt above entity"""
+    def draw_interaction_prompt_world(self, surface, x, y, text):
+        """Draw interaction prompt in world space"""
         prompt_font = pygame.font.Font(None, 18)
         text_surface = prompt_font.render(text, True, WHITE)
         
@@ -397,15 +503,15 @@ class FarmGame:
         bg = pygame.Surface((bg_width, bg_height))
         bg.set_alpha(220)
         bg.fill((40, 40, 40))
-        self.screen.blit(bg, (bg_x, bg_y))
+        surface.blit(bg, (bg_x, bg_y))
         
         # Border
-        pygame.draw.rect(self.screen, YELLOW, (bg_x, bg_y, bg_width, bg_height), 2)
+        pygame.draw.rect(surface, YELLOW, (bg_x, bg_y, bg_width, bg_height), 2)
         
         # Text
         text_x = bg_x + padding
         text_y = bg_y + padding
-        self.screen.blit(text_surface, (text_x, text_y))
+        surface.blit(text_surface, (text_x, text_y))
         
     def save_game(self):
         """Save game state"""
@@ -474,7 +580,7 @@ class FarmGame:
         self.load_game()
         
         while True:
-            dt = self.clock.tick(FPS) / 16.67  # Normalize to 60 FPS
+            dt = self.clock.tick(FPS) / 16.67
             
             self.handle_events()
             self.update(dt)

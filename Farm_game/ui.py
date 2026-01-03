@@ -6,6 +6,14 @@ class UI:
         self.font = pygame.font.Font(None, 22)
         self.title_font = pygame.font.Font(None, 28)
         self.small_font = pygame.font.Font(None, 18)
+        self.tiny_font = pygame.font.Font(None, 14)
+        
+        # Settings
+        self.show_controls = False
+        
+    def toggle_controls(self):
+        """Toggle controls visibility"""
+        self.show_controls = not self.show_controls
         
     def draw_player_stats(self, surface, player, time_system):
         """Draw player stats in top-left corner"""
@@ -56,8 +64,11 @@ class UI:
         time_text = self.font.render(f"{day_str} - {time_str}", True, WHITE)
         surface.blit(time_text, (20, y_offset))
         
-    def draw_controls(self, surface):
+    def draw_controls(self, surface, screen_width, screen_height):
         """Draw controls guide"""
+        if not self.show_controls:
+            return
+            
         controls = [
             "WASD/Arrows - Move",
             "Left Click - Use Tool",
@@ -77,21 +88,53 @@ class UI:
         bg = pygame.Surface((220, bg_height))
         bg.set_alpha(200)
         bg.fill((40, 40, 40))
-        surface.blit(bg, (SCREEN_WIDTH - 230, 10))
+        surface.blit(bg, (screen_width - 230, 10))
         
         # Border
-        pygame.draw.rect(surface, WHITE, (SCREEN_WIDTH - 230, 10, 220, bg_height), 2)
+        pygame.draw.rect(surface, WHITE, (screen_width - 230, 10, 220, bg_height), 2)
         
         # Title
         title = self.title_font.render("Controls", True, WHITE)
-        surface.blit(title, (SCREEN_WIDTH - 220, 20))
+        surface.blit(title, (screen_width - 220, 20))
         
         # Controls list
         for i, control in enumerate(controls):
             text = self.small_font.render(control, True, WHITE)
-            surface.blit(text, (SCREEN_WIDTH - 220, 50 + i * 22))
+            surface.blit(text, (screen_width - 220, 50 + i * 22))
+    
+    def draw_settings_button(self, surface, screen_width, screen_height):
+        """Draw settings button in bottom-right corner"""
+        button_size = 32
+        button_x = screen_width - button_size - 10
+        button_y = screen_height - button_size - 10
+        
+        # Button background
+        button_rect = pygame.Rect(button_x, button_y, button_size, button_size)
+        pygame.draw.rect(surface, (60, 60, 60), button_rect)
+        pygame.draw.rect(surface, WHITE, button_rect, 2)
+        
+        # Gear icon (simplified)
+        center_x = button_x + button_size // 2
+        center_y = button_y + button_size // 2
+        
+        # Draw gear teeth (8 spokes)
+        import math
+        for i in range(8):
+            angle = i * 45 * math.pi / 180
+            x1 = center_x + int(10 * math.cos(angle))
+            y1 = center_y + int(10 * math.sin(angle))
+            x2 = center_x + int(12 * math.cos(angle))
+            y2 = center_y + int(12 * math.sin(angle))
+            pygame.draw.line(surface, WHITE, (x1, y1), (x2, y2), 2)
+        
+        # Center circle
+        pygame.draw.circle(surface, (60, 60, 60), (center_x, center_y), 6)
+        pygame.draw.circle(surface, WHITE, (center_x, center_y), 6, 2)
+        pygame.draw.circle(surface, (60, 60, 60), (center_x, center_y), 3)
+        
+        return button_rect
             
-    def draw_notification(self, surface, message, duration=120):
+    def draw_notification(self, surface, message, screen_width, screen_height, duration=120):
         """Draw temporary notification"""
         if message:
             # Background
@@ -100,8 +143,8 @@ class UI:
             width = text_surface.get_width() + padding * 2
             height = text_surface.get_height() + padding * 2
             
-            x = (SCREEN_WIDTH - width) // 2
-            y = SCREEN_HEIGHT - 200
+            x = (screen_width - width) // 2
+            y = screen_height - 200
             
             bg = pygame.Surface((width, height))
             bg.set_alpha(230)
@@ -112,13 +155,13 @@ class UI:
             
             surface.blit(text_surface, (x + padding, y + padding))
             
-    def draw_shop(self, surface, shop_items, player_money):
+    def draw_shop(self, surface, shop_items, player_money, screen_width, screen_height):
         """Draw shop interface"""
         # Background
         menu_width = 400
         menu_height = 350
-        menu_x = (SCREEN_WIDTH - menu_width) // 2
-        menu_y = (SCREEN_HEIGHT - menu_height) // 2
+        menu_x = (screen_width - menu_width) // 2
+        menu_y = (screen_height - menu_height) // 2
         
         bg = pygame.Surface((menu_width, menu_height))
         bg.set_alpha(240)

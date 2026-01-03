@@ -24,7 +24,7 @@ class Inventory:
         
         # UI state
         self.show_full_inventory = False
-        self.selected_inventory_item = None  # For dragging to hotbar
+        self.selected_inventory_item = None
         
         # Fonts
         self.font = pygame.font.Font(None, 20)
@@ -85,27 +85,26 @@ class Inventory:
         if 0 <= slot < 5:
             self.hotbar[slot] = item_name
     
-    def handle_inventory_click(self, pos):
+    def handle_inventory_click(self, pos, screen_width, screen_height):
         """Handle clicks on the full inventory screen"""
         if not self.show_full_inventory:
             return False
         
-        panel_width = 600
-        panel_height = 600  # Increased height to accommodate hotbar
-        panel_x = (SCREEN_WIDTH - panel_width) // 2
-        panel_y = (SCREEN_HEIGHT - panel_height) // 2
+        panel_width = min(600, screen_width - 40)
+        panel_height = min(600, screen_height - 40)
+        panel_x = (screen_width - panel_width) // 2
+        panel_y = (screen_height - panel_height) // 2
         
         # Check if click is inside panel
         if not (panel_x <= pos[0] <= panel_x + panel_width and 
                 panel_y <= pos[1] <= panel_y + panel_height):
-            # Check if clicking on hotbar instead (now integrated)
             hotbar_result = self.handle_integrated_hotbar_click(pos, panel_x, panel_y, panel_width, panel_height)
             if hotbar_result:
                 return True
             return False
         
         # Check inventory grid clicks
-        slot_size = 70
+        slot_size = min(70, (panel_width - 80) // 6)
         slots_per_row = 6
         start_x = panel_x + 30
         start_y = panel_y + 75
@@ -122,19 +121,16 @@ class Inventory:
                 x = start_x + col * (slot_size + slot_spacing)
                 y = start_y + row * (slot_size + slot_spacing)
                 
-                # Check if click is in this slot
                 if x <= pos[0] <= x + slot_size and y <= pos[1] <= y + slot_size:
                     item_name = all_items[slot_index]
                     count = self.items.get(item_name, 0)
                     
-                    # Only allow selection if item has count > 0
                     if count > 0:
                         self.selected_inventory_item = item_name
                         return True
                 
                 slot_index += 1
         
-        # Check integrated hotbar clicks
         hotbar_result = self.handle_integrated_hotbar_click(pos, panel_x, panel_y, panel_width, panel_height)
         if hotbar_result:
             return True
@@ -153,68 +149,59 @@ class Inventory:
             x = start_x + i * (slot_size + spacing)
             y = start_y
             
-            # Check if click is in this hotbar slot
             if x <= pos[0] <= x + slot_size and y <= pos[1] <= y + slot_size:
-                # If we have a selected inventory item, assign it to this slot
                 if self.selected_inventory_item:
                     self.hotbar[i] = self.selected_inventory_item
                     self.selected_inventory_item = None
                     return True
-                # Otherwise just select this slot
                 else:
                     self.selected_hotbar_slot = i
                     return True
         
         return False
     
-    def handle_hotbar_click(self, pos):
+    def handle_hotbar_click(self, pos, screen_width, screen_height):
         """Handle clicks on hotbar slots when inventory is closed"""
         slot_size = 64
         spacing = 8
         total_width = (slot_size * 5) + (spacing * 4)
-        start_x = (SCREEN_WIDTH - total_width) // 2
-        start_y = SCREEN_HEIGHT - slot_size - 20
+        start_x = (screen_width - total_width) // 2
+        start_y = screen_height - slot_size - 20
         
         for i in range(5):
             x = start_x + i * (slot_size + spacing)
             y = start_y
             
-            # Check if click is in this hotbar slot
             if x <= pos[0] <= x + slot_size and y <= pos[1] <= y + slot_size:
-                # Just select this slot
                 self.selected_hotbar_slot = i
                 return True
         
         return False
     
-    def draw_hotbar(self, surface):
+    def draw_hotbar(self, surface, screen_width, screen_height):
         """Draw the hotbar at bottom center of screen"""
         slot_size = 64
         spacing = 8
         total_width = (slot_size * 5) + (spacing * 4)
-        start_x = (SCREEN_WIDTH - total_width) // 2
-        start_y = SCREEN_HEIGHT - slot_size - 20
+        start_x = (screen_width - total_width) // 2
+        start_y = screen_height - slot_size - 20
         
         for i in range(5):
             x = start_x + i * (slot_size + spacing)
             y = start_y
             
-            # Draw slot background
             is_selected = i == self.selected_hotbar_slot
             color = (100, 100, 100) if is_selected else (60, 60, 60)
             pygame.draw.rect(surface, color, (x, y, slot_size, slot_size))
             pygame.draw.rect(surface, WHITE if is_selected else GRAY, 
                            (x, y, slot_size, slot_size), 3 if is_selected else 2)
             
-            # Draw item in slot
             item_name = self.hotbar[i]
             if item_name and item_name in self.items:
                 count = self.items.get(item_name, 0)
                 
-                # Draw item icon
                 self.draw_item_icon(surface, item_name, x + slot_size // 2, y + 20)
                 
-                # Draw quantity - ALWAYS show count
                 count_text = self.font.render(str(count), True, WHITE)
                 text_bg = pygame.Surface((count_text.get_width() + 4, count_text.get_height() + 2))
                 text_bg.fill((0, 0, 0))
@@ -222,7 +209,6 @@ class Inventory:
                 surface.blit(text_bg, (x + 3, y + slot_size - 24))
                 surface.blit(count_text, (x + 5, y + slot_size - 22))
                 
-                # Draw item name
                 display_name = item_name.replace("_", " ").replace(" seed", "").title()
                 if len(display_name) > 8:
                     display_name = display_name[:7] + "."
@@ -230,7 +216,6 @@ class Inventory:
                 name_x = x + slot_size // 2 - name_text.get_width() // 2
                 surface.blit(name_text, (name_x, y + 40))
             
-            # Draw slot number
             num_text = self.small_font.render(str(i + 1), True, YELLOW if is_selected else GRAY)
             surface.blit(num_text, (x + 4, y + 4))
     
@@ -242,7 +227,6 @@ class Inventory:
         start_x = panel_x + (panel_width - total_width) // 2
         start_y = panel_y + panel_height - slot_size - 30
         
-        # Draw "Hotbar" label
         hotbar_label = self.font.render("Hotbar", True, YELLOW)
         label_x = panel_x + (panel_width - hotbar_label.get_width()) // 2
         surface.blit(hotbar_label, (label_x, start_y - 25))
@@ -251,22 +235,18 @@ class Inventory:
             x = start_x + i * (slot_size + spacing)
             y = start_y
             
-            # Draw slot background
             is_selected = i == self.selected_hotbar_slot
             color = (100, 100, 100) if is_selected else (60, 60, 60)
             pygame.draw.rect(surface, color, (x, y, slot_size, slot_size))
             pygame.draw.rect(surface, WHITE if is_selected else GRAY, 
                            (x, y, slot_size, slot_size), 3 if is_selected else 2)
             
-            # Draw item in slot
             item_name = self.hotbar[i]
             if item_name and item_name in self.items:
                 count = self.items.get(item_name, 0)
                 
-                # Draw item icon
                 self.draw_item_icon(surface, item_name, x + slot_size // 2, y + 20)
                 
-                # Draw quantity - ALWAYS show count
                 count_text = self.font.render(str(count), True, WHITE)
                 text_bg = pygame.Surface((count_text.get_width() + 4, count_text.get_height() + 2))
                 text_bg.fill((0, 0, 0))
@@ -274,7 +254,6 @@ class Inventory:
                 surface.blit(text_bg, (x + 3, y + slot_size - 24))
                 surface.blit(count_text, (x + 5, y + slot_size - 22))
                 
-                # Draw item name
                 display_name = item_name.replace("_", " ").replace(" seed", "").title()
                 if len(display_name) > 8:
                     display_name = display_name[:7] + "."
@@ -282,44 +261,39 @@ class Inventory:
                 name_x = x + slot_size // 2 - name_text.get_width() // 2
                 surface.blit(name_text, (name_x, y + 40))
             
-            # Draw slot number
             num_text = self.small_font.render(str(i + 1), True, YELLOW if is_selected else GRAY)
             surface.blit(num_text, (x + 4, y + 4))
     
-    def draw_full_inventory(self, surface):
-        """Draw the full inventory screen with integrated hotbar"""
+    def draw_full_inventory(self, surface, screen_width, screen_height):
+        """Draw the full inventory screen with integrated hotbar - responsive"""
         if not self.show_full_inventory:
             return
         
         # Draw semi-transparent background overlay
-        overlay = pygame.Surface((SCREEN_WIDTH, SCREEN_HEIGHT))
+        overlay = pygame.Surface((screen_width, screen_height))
         overlay.set_alpha(180)
         overlay.fill((0, 0, 0))
         surface.blit(overlay, (0, 0))
         
-        # Inventory panel dimensions (increased height for hotbar)
-        panel_width = 600
-        panel_height = 600
-        panel_x = (SCREEN_WIDTH - panel_width) // 2
-        panel_y = (SCREEN_HEIGHT - panel_height) // 2
+        # Responsive panel dimensions
+        panel_width = min(600, screen_width - 40)
+        panel_height = min(600, screen_height - 40)
+        panel_x = (screen_width - panel_width) // 2
+        panel_y = (screen_height - panel_height) // 2
         
         # Draw panel background
         bg = pygame.Surface((panel_width, panel_height))
         bg.fill((40, 40, 40))
         surface.blit(bg, (panel_x, panel_y))
         
-        # Draw border
         pygame.draw.rect(surface, WHITE, (panel_x, panel_y, panel_width, panel_height), 3)
         
-        # Title
         title = self.title_font.render("Inventory", True, WHITE)
         surface.blit(title, (panel_x + 20, panel_y + 15))
         
-        # Close instruction
         close_text = self.font.render("Press E to close", True, GRAY)
         surface.blit(close_text, (panel_x + panel_width - 150, panel_y + 15))
         
-        # Instructions
         if self.selected_inventory_item:
             instruction = self.small_font.render(
                 f"Selected: {self.selected_inventory_item.replace('_', ' ').title()} - Click hotbar slot to assign",
@@ -332,8 +306,8 @@ class Inventory:
             )
         surface.blit(instruction, (panel_x + 20, panel_y + 45))
         
-        # Draw inventory grid (6 columns x 6 rows = 36 slots)
-        slot_size = 70
+        # Draw inventory grid with responsive slot size
+        slot_size = min(70, (panel_width - 80) // 6)
         slots_per_row = 6
         start_x = panel_x + 30
         start_y = panel_y + 75
@@ -354,7 +328,6 @@ class Inventory:
                 count = self.items.get(item_name, 0)
                 is_selected = item_name == self.selected_inventory_item
                 
-                # Draw slot with highlight if selected
                 slot_color = (80, 100, 80) if is_selected else (60, 60, 60)
                 pygame.draw.rect(surface, slot_color, (x, y, slot_size, slot_size))
                 border_color = YELLOW if is_selected else GRAY
@@ -362,10 +335,8 @@ class Inventory:
                 pygame.draw.rect(surface, border_color, (x, y, slot_size, slot_size), border_width)
                 
                 if count > 0:
-                    # Draw item icon
                     self.draw_item_icon(surface, item_name, x + slot_size // 2, y + 15)
                     
-                    # Draw quantity - ALWAYS show count
                     count_text = self.font.render(str(count), True, WHITE)
                     text_bg = pygame.Surface((count_text.get_width() + 4, count_text.get_height() + 2))
                     text_bg.fill((0, 0, 0))
@@ -373,7 +344,6 @@ class Inventory:
                     surface.blit(text_bg, (x + 3, y + slot_size - 24))
                     surface.blit(count_text, (x + 5, y + slot_size - 22))
                     
-                    # Draw item name
                     display_name = item_name.replace("_", " ").title()
                     if len(display_name) > 9:
                         display_name = display_name[:8] + "."
@@ -381,7 +351,6 @@ class Inventory:
                     name_x = x + slot_size // 2 - name_text.get_width() // 2
                     surface.blit(name_text, (name_x, y + 45))
                 else:
-                    # Empty slot - show item name in gray
                     display_name = item_name.replace("_", " ").title()
                     if len(display_name) > 9:
                         display_name = display_name[:8] + "."
@@ -390,22 +359,18 @@ class Inventory:
                     name_y = y + slot_size // 2 - name_text.get_height() // 2
                     surface.blit(name_text, (name_x, name_y))
                     
-                    # Draw "0" count
                     count_text = self.small_font.render("0", True, (100, 100, 100))
                     surface.blit(count_text, (x + 5, y + slot_size - 20))
                 
                 slot_index += 1
         
-        # Draw separator line above hotbar
         separator_y = panel_y + panel_height - 120
         pygame.draw.line(surface, GRAY, (panel_x + 20, separator_y), (panel_x + panel_width - 20, separator_y), 2)
         
-        # Draw integrated hotbar
         self.draw_integrated_hotbar(surface, panel_x, panel_y, panel_width, panel_height)
     
     def draw_item_icon(self, surface, item_name, x, y):
         """Draw an icon for an item"""
-        # Define colors for different item types
         icon_colors = {
             "wheat_seed": (218, 165, 32),
             "carrot_seed": (255, 140, 0),
@@ -427,38 +392,29 @@ class Inventory:
         
         color = icon_colors.get(item_name, WHITE)
         
-        # Draw simple icon based on item type
         if item_name.endswith("_seed"):
-            # Seeds - small circle
             pygame.draw.circle(surface, color, (x, y), 8)
             pygame.draw.circle(surface, (0, 0, 0), (x, y), 8, 1)
         elif item_name in ["wheat", "carrot", "tomato", "corn"]:
-            # Crops - larger circle with highlight
             pygame.draw.circle(surface, color, (x, y), 12)
             pygame.draw.circle(surface, (255, 255, 255), (x - 3, y - 3), 3)
         elif item_name == "wood":
-            # Wood - rectangle
             pygame.draw.rect(surface, color, (x - 10, y - 8, 20, 16))
             pygame.draw.rect(surface, (101, 67, 33), (x - 10, y - 8, 20, 16), 2)
         elif item_name == "stone":
-            # Stone - polygon
             points = [(x, y - 10), (x + 10, y), (x, y + 10), (x - 10, y)]
             pygame.draw.polygon(surface, color, points)
             pygame.draw.polygon(surface, (80, 80, 80), points, 2)
         elif item_name in ["egg", "milk", "wool"]:
-            # Animal products - oval/circle
             pygame.draw.ellipse(surface, color, (x - 10, y - 8, 20, 16))
             pygame.draw.ellipse(surface, (200, 200, 200), (x - 10, y - 8, 20, 16), 2)
         else:
-            # Default - square
             pygame.draw.rect(surface, color, (x - 10, y - 10, 20, 20))
             pygame.draw.rect(surface, WHITE, (x - 10, y - 10, 20, 20), 2)
     
-    def draw(self, surface):
+    def draw(self, surface, screen_width, screen_height):
         """Draw inventory UI"""
-        # Draw full inventory if open (with integrated hotbar)
         if self.show_full_inventory:
-            self.draw_full_inventory(surface)
+            self.draw_full_inventory(surface, screen_width, screen_height)
         else:
-            # Only draw hotbar when inventory is closed
-            self.draw_hotbar(surface)
+            self.draw_hotbar(surface, screen_width, screen_height)

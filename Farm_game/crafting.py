@@ -54,7 +54,7 @@ class Crafting:
         """Toggle crafting menu"""
         self.show_menu = not self.show_menu
         
-    def draw_menu(self, surface, inventory):
+    def draw_menu(self, surface, inventory, screen_width, screen_height):
         """Draw crafting menu"""
         if not self.show_menu:
             return
@@ -62,8 +62,8 @@ class Crafting:
         # Draw background
         menu_width = 400
         menu_height = 300
-        menu_x = (SCREEN_WIDTH - menu_width) // 2
-        menu_y = (SCREEN_HEIGHT - menu_height) // 2
+        menu_x = (screen_width - menu_width) // 2
+        menu_y = (screen_height - menu_height) // 2
         
         # Semi-transparent background
         bg = pygame.Surface((menu_width, menu_height))
@@ -108,15 +108,15 @@ class Crafting:
         close_text = self.font.render("Press C to close", True, WHITE)
         surface.blit(close_text, (menu_x + 20, menu_y + menu_height - 30))
         
-    def handle_click(self, pos, inventory):
+    def handle_click(self, pos, inventory, screen_width, screen_height):
         """Handle mouse click on crafting menu"""
         if not self.show_menu:
             return False
             
         menu_width = 400
         menu_height = 300
-        menu_x = (SCREEN_WIDTH - menu_width) // 2
-        menu_y = (SCREEN_HEIGHT - menu_height) // 2
+        menu_x = (screen_width - menu_width) // 2
+        menu_y = (screen_height - menu_height) // 2
         
         y_offset = 50
         for i, recipe_name in enumerate(self.recipes.keys()):

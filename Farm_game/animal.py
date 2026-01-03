@@ -11,7 +11,8 @@ class Animal(pygame.sprite.Sprite):
             "product_time": 60,
             "product_value": 25,
             "speed": 1.2,
-            "wander_radius": 100
+            "wander_radius": 100,
+            "feed_cooldown": 180  # 3 seconds at 60 FPS
         },
         "cow": {
             "color": (139, 90, 43),
@@ -20,7 +21,8 @@ class Animal(pygame.sprite.Sprite):
             "product_time": 120,
             "product_value": 30,
             "speed": 0.8,
-            "wander_radius": 80
+            "wander_radius": 80,
+            "feed_cooldown": 180
         },
         "sheep": {
             "color": (245, 245, 245),
@@ -29,7 +31,8 @@ class Animal(pygame.sprite.Sprite):
             "product_time": 50,
             "product_value": 30,
             "speed": 1.0,
-            "wander_radius": 90
+            "wander_radius": 90,
+            "feed_cooldown": 180
         }
     }
     
@@ -48,7 +51,7 @@ class Animal(pygame.sprite.Sprite):
         
         # Store home position for wandering
         self.home_pos = pygame.math.Vector2(pos)
-        self.position = pygame.math.Vector2(pos)  # Float position for smooth movement
+        self.position = pygame.math.Vector2(pos)
         
         # Movement behavior
         self.speed = self.data["speed"]
@@ -59,7 +62,7 @@ class Animal(pygame.sprite.Sprite):
         
         # Behavior timers
         self.change_direction_timer = 0
-        self.change_direction_delay = random.randint(60, 180)  # 1-3 seconds
+        self.change_direction_delay = random.randint(60, 180)
         self.pause_timer = 0
         self.is_paused = random.choice([True, False])
         self.pause_duration = random.randint(30, 120) if self.is_paused else 0
@@ -69,10 +72,14 @@ class Animal(pygame.sprite.Sprite):
         self.movement_state = random.choice(["wander", "pause", "roam"])
         self.state_timer = random.randint(120, 300)
         
-        # Production
+        # Animal state system - proper cycle
+        # States: "has_product" -> "needs_feed" -> "cooldown" -> "producing" -> "has_product"
+        self.state = "has_product"  # Start with product ready
         self.product_timer = 0
-        self.has_product = False
-        self.fed = True
+        self.feed_cooldown_timer = 0
+        self.feed_cooldown_duration = self.data["feed_cooldown"]
+        
+        # Legacy support
         self.happiness = 100
         
     def create_sprite(self):
@@ -128,21 +135,17 @@ class Animal(pygame.sprite.Sprite):
     
     def choose_new_direction(self):
         """Choose a new random direction"""
-        # Occasionally move toward home if too far away
         distance_from_home = self.position.distance_to(self.home_pos)
         
         if distance_from_home > self.wander_radius * 1.5:
-            # Move toward home
             direction_to_home = self.home_pos - self.position
             if direction_to_home.length() > 0:
                 self.direction = direction_to_home.normalize()
-                # Add some randomness
                 self.direction.x += random.uniform(-0.3, 0.3)
                 self.direction.y += random.uniform(-0.3, 0.3)
                 if self.direction.length() > 0:
                     self.direction = self.direction.normalize()
         else:
-            # Random direction
             angle = random.uniform(0, 2 * 3.14159)
             self.direction = pygame.math.Vector2(
                 random.uniform(-1, 1),
@@ -153,7 +156,7 @@ class Animal(pygame.sprite.Sprite):
     
     def change_movement_state(self):
         """Change between different movement behaviors"""
-        states = ["wander", "pause", "roam", "wander", "roam"]  # More wander/roam
+        states = ["wander", "pause", "roam", "wander", "roam"]
         self.movement_state = random.choice(states)
         
         if self.movement_state == "pause":
@@ -165,7 +168,7 @@ class Animal(pygame.sprite.Sprite):
             self.is_paused = False
             self.speed = self.base_speed * random.uniform(0.5, 1.0)
             self.choose_new_direction()
-        else:  # roam
+        else:
             self.is_paused = False
             self.speed = self.base_speed * random.uniform(0.7, 1.3)
             self.choose_new_direction()
@@ -178,6 +181,27 @@ class Animal(pygame.sprite.Sprite):
         self.state_timer -= 1
         if self.state_timer <= 0:
             self.change_movement_state()
+        
+        # Animal state machine
+        if self.state == "cooldown":
+            # Waiting for cooldown to finish after feeding
+            self.feed_cooldown_timer -= 1
+            if self.feed_cooldown_timer <= 0:
+                # Cooldown finished, start producing
+                self.state = "producing"
+                self.product_timer = 0
+                
+        elif self.state == "producing":
+            # Producing the product
+            self.product_timer += dt
+            if self.product_timer >= self.data["product_time"]:
+                # Product ready!
+                self.state = "has_product"
+                self.product_timer = 0
+                # Brief pause when product is ready
+                self.is_paused = True
+                self.pause_duration = 30
+                self.pause_timer = 0
         
         # Handle pausing
         if self.is_paused:
@@ -195,8 +219,7 @@ class Animal(pygame.sprite.Sprite):
                 self.change_direction_timer = 0
                 self.change_direction_delay = random.randint(60, 180)
                 
-                # Sometimes pause after changing direction
-                if random.random() < 0.2:  # 20% chance
+                if random.random() < 0.2:
                     self.is_paused = True
                     self.pause_duration = random.randint(20, 60)
                     self.pause_timer = 0
@@ -225,57 +248,66 @@ class Animal(pygame.sprite.Sprite):
                 self.position.y = SCREEN_HEIGHT - self.rect.height // 2
                 self.direction.y = -abs(self.direction.y)
             
-            # Occasionally change direction when hitting boundaries
             if (self.rect.left <= 0 or self.rect.right >= SCREEN_WIDTH or 
                 self.rect.top <= 0 or self.rect.bottom >= SCREEN_HEIGHT):
                 if random.random() < 0.5:
                     self.choose_new_direction()
             
-        # Production
-        if self.fed and not self.has_product:
-            self.product_timer += dt
-            if self.product_timer >= self.data["product_time"]:
-                self.has_product = True
-                self.product_timer = 0
-                # Pause when producing
-                self.is_paused = True
-                self.pause_duration = 30
-                self.pause_timer = 0
-                
-        # Happiness decreases if not fed
-        if not self.fed and self.happiness > 0:
-            self.happiness -= 0.1 * dt
-            # Move slower when unhappy
-            if self.happiness < 50:
-                self.speed = self.base_speed * 0.5
-            
     def feed(self):
-        """Feed the animal"""
-        self.fed = True
-        self.happiness = min(100, self.happiness + 20)
-        # Brief pause when being fed
-        self.is_paused = True
-        self.pause_duration = 20
-        self.pause_timer = 0
+        """Feed the animal - only when in needs_feed state"""
+        if self.state == "needs_feed":
+            # Start cooldown
+            self.state = "cooldown"
+            self.feed_cooldown_timer = self.feed_cooldown_duration
+            self.happiness = min(100, self.happiness + 20)
+            # Brief pause when being fed
+            self.is_paused = True
+            self.pause_duration = 20
+            self.pause_timer = 0
+            return True
+        return False
         
     def collect_product(self):
-        """Collect animal product"""
-        if self.has_product:
-            self.has_product = False
-            self.fed = False
+        """Collect animal product - only when in has_product state"""
+        if self.state == "has_product":
+            # Transition to needs_feed state
+            self.state = "needs_feed"
             return self.data["product"], self.data["product_value"]
         return None, 0
+    
+    def can_collect(self):
+        """Check if product can be collected"""
+        return self.state == "has_product"
+    
+    def can_feed(self):
+        """Check if animal can be fed"""
+        return self.state == "needs_feed"
+    
+    def get_state_info(self):
+        """Get human-readable state information"""
+        if self.state == "has_product":
+            return "Ready to collect!"
+        elif self.state == "needs_feed":
+            return "Hungry - needs feeding"
+        elif self.state == "cooldown":
+            time_left = int(self.feed_cooldown_timer / 60)
+            return f"Digesting... ({time_left}s)"
+        elif self.state == "producing":
+            progress = int((self.product_timer / self.data["product_time"]) * 100)
+            return f"Producing... ({progress}%)"
+        return ""
         
     def draw_status(self, surface):
         """Draw status indicators above animal"""
-        if self.has_product:
+        if self.state == "has_product":
             # Draw exclamation mark when product ready
             pygame.draw.circle(surface, YELLOW, 
                              (self.rect.centerx, self.rect.top - 10), 4)
             pygame.draw.circle(surface, YELLOW, 
                              (self.rect.centerx, self.rect.top - 16), 2)
-        elif not self.fed:
-            # Draw heart when hungry
+                             
+        elif self.state == "needs_feed":
+            # Draw heart when hungry and needs feeding
             heart_x = self.rect.centerx
             heart_y = self.rect.top - 12
             pygame.draw.circle(surface, RED, (heart_x - 3, heart_y), 3)
@@ -285,3 +317,21 @@ class Animal(pygame.sprite.Sprite):
                 (heart_x, heart_y + 6),
                 (heart_x + 6, heart_y)
             ])
+            
+        elif self.state == "cooldown":
+            # Draw clock icon when on cooldown (digesting)
+            clock_x = self.rect.centerx
+            clock_y = self.rect.top - 12
+            pygame.draw.circle(surface, GRAY, (clock_x, clock_y), 4)
+            pygame.draw.circle(surface, WHITE, (clock_x, clock_y), 4, 1)
+            # Clock hand
+            pygame.draw.line(surface, WHITE, (clock_x, clock_y), (clock_x, clock_y - 3), 1)
+            
+        elif self.state == "producing":
+            # Draw animated dots when producing
+            import time
+            dots = int(time.time() * 2) % 4  # 0-3 dots animation
+            dot_str = "." * dots
+            # Draw small progress indicator
+            pygame.draw.circle(surface, (100, 200, 100), 
+                             (self.rect.centerx, self.rect.top - 10), 3)
