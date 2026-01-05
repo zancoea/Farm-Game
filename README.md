@@ -2,16 +2,16 @@
 
 ## 01/03/26
 
-random animal movement <br>
-inventory and hotbar system <br>
-npc/animal hotkey interaction <br>
-plot claiming <br>
-proper tool usage <br>
-selling of crops <br>
-price adjustment <br>
-player sprite to usage of asset <br>
-time system adjustment <br>
-lock and sellable plot <br>
+Random Animal Movement <br>
+Inventory and Hotbar System <br>
+Npc/animal Hotkey Interaction <br>
+Plot Claiming <br>
+Proper Tool Usage <br>
+Selling of Crops <br>
+Price Adjustment <br>
+Player Sprite to Usage of Asset <br>
+Time System Adjustment <br>
+Lock and Sellable Plot <br>
 Feed Animal Cooldown <br>
 Settings Button <br>
 Fix Animal Interaction Cycle <br>
@@ -23,3 +23,5 @@ Fix Animal Interaction Cycle <br>
 Resizable Game Window <br>
 	>> All UI elements repositions
 
+## 01/04/26
+Added Quest System <br>
