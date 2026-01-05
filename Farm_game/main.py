@@ -11,6 +11,7 @@ from npc import NPC
 from time_system import TimeSystem
 from ui import UI
 from plot_system import PlotSystem
+from quest_system import QuestSystem
 
 class FarmGame:
     def __init__(self):
@@ -56,6 +57,11 @@ class FarmGame:
         self.time_system = TimeSystem()
         self.ui = UI()
         self.plot_system = PlotSystem()
+        self.quest_system = QuestSystem()
+        
+        # Track last completed quest for notification
+        self.last_completed_quest = None
+        self.quest_notification_timer = 0
         
         # Game state
         self.show_grid = False
@@ -175,6 +181,8 @@ class FarmGame:
                     self.inventory.toggle_inventory()
                 elif event.key == pygame.K_c:
                     self.crafting.toggle_menu()
+                elif event.key == pygame.K_q:
+                    self.quest_system.toggle_quest_tab()
                 elif event.key == pygame.K_i:
                     self.show_grid = not self.show_grid
                 elif event.key == pygame.K_h:
@@ -202,14 +210,32 @@ class FarmGame:
                     if self.inventory.handle_inventory_click(mouse_pos, self.screen_width, self.screen_height):
                         continue
                 
-                # Don't process tool/interact clicks if inventory is open
-                if self.inventory.show_full_inventory:
+                # Handle quest tab clicks
+                if self.quest_system.show_quest_tab and event.button == 1:
+                    result = self.quest_system.handle_click(mouse_pos, self.screen_width, 
+                                                           self.screen_height, self.player, self.inventory)
+                    if result:
+                        self.show_notification(result)
+                        continue
+                
+                # Don't process tool/interact clicks if inventory or quest tab is open
+                if self.inventory.show_full_inventory or self.quest_system.show_quest_tab:
                     continue
                 
                 # Handle crafting menu clicks
                 if self.crafting.show_menu and event.button == 1:
                     if self.crafting.handle_click(mouse_pos, self.inventory, self.screen_width, self.screen_height):
                         self.show_notification("Item crafted!")
+                        
+                        # Track crafted item for quests (get last crafted item name)
+                        # Check what was just crafted by looking at inventory changes
+                        for recipe_name in self.crafting.recipes:
+                            # Simple tracking - update quest for fence crafting
+                            completed = self.quest_system.update_quest("craft", recipe_name, 1)
+                            if completed:
+                                self.last_completed_quest = completed
+                                self.quest_notification_timer = 180
+                            break
                         
                 # Handle shop clicks
                 elif self.shopkeeper.shop_mode and event.button == 1:
@@ -245,6 +271,13 @@ class FarmGame:
                             success, message = self.plot_system.claim_plot(grid_pos, self.player, self.world)
                             if success or message:
                                 self.show_notification(message)
+                                
+                                if success:
+                                    # Update quest
+                                    completed = self.quest_system.update_quest("claim", "plot", 1)
+                                    if completed:
+                                        self.last_completed_quest = completed
+                                        self.quest_notification_timer = 180
     
     def check_nearby_entities(self):
         """Check for nearby NPCs and animals for F key interaction"""
@@ -282,10 +315,23 @@ class FarmGame:
             if product:
                 self.inventory.add_item(product, 1)
                 self.show_notification(f"Collected {product}! You can now feed the animal again!")
+                
+                # Update quests
+                completed = self.quest_system.update_quest("collect", product, 1)
+                if completed:
+                    self.last_completed_quest = completed
+                    self.quest_notification_timer = 180
+                    
         elif animal.can_feed():
             # Feed the animal
             if animal.feed():
                 self.show_notification(f"Fed {animal.animal_type}! Wait for digestion.")
+                
+                # Update quests
+                completed = self.quest_system.update_quest("feed", "animal", 1)
+                if completed:
+                    self.last_completed_quest = completed
+                    self.quest_notification_timer = 180
         else:
             # Animal is in cooldown or producing
             state_info = animal.get_state_info()
@@ -309,11 +355,23 @@ class FarmGame:
                 if self.world.till(pos):
                     self.show_notification("Soil tilled!")
                     
+                    # Update quests
+                    completed = self.quest_system.update_quest("till", "soil", 1)
+                    if completed:
+                        self.last_completed_quest = completed
+                        self.quest_notification_timer = 180
+                    
         elif tool == "watering_can":
             # Water crops and soil
             if self.player.use_energy(3):
                 if self.world.water(pos):
                     self.show_notification("Watered!")
+                    
+                    # Update quests
+                    completed = self.quest_system.update_quest("water", "crop", 1)
+                    if completed:
+                        self.last_completed_quest = completed
+                        self.quest_notification_timer = 180
                     
         elif tool == "hand":
             # Plant or harvest
@@ -323,6 +381,12 @@ class FarmGame:
                 if self.inventory.use(seed_name):
                     if self.world.plant(pos, crop_type):
                         self.show_notification(f"Planted {crop_type}!")
+                        
+                        # Update quests
+                        completed = self.quest_system.update_quest("plant", crop_type, 1)
+                        if completed:
+                            self.last_completed_quest = completed
+                            self.quest_notification_timer = 180
                     else:
                         # Refund seed if planting failed
                         self.inventory.add_item(seed_name, 1)
@@ -333,12 +397,24 @@ class FarmGame:
                     self.inventory.add_item(crop_type, 1)
                     self.show_notification(f"Harvested {crop_type}! Sell to shopkeeper!")
                     
+                    # Update quests
+                    completed = self.quest_system.update_quest("harvest", crop_type, 1)
+                    if completed:
+                        self.last_completed_quest = completed
+                        self.quest_notification_timer = 180
+                    
         elif tool == "axe":
             # Chop trees for wood
             tile = self.world.get_tile_at_pos(pos)
             if tile and tile.kind == "T" and self.player.use_energy(10):
                 self.inventory.add_item("wood", 3)
                 self.show_notification("Chopped wood! +3 wood")
+                
+                # Update quests
+                completed = self.quest_system.update_quest("collect", "wood", 3)
+                if completed:
+                    self.last_completed_quest = completed
+                    self.quest_notification_timer = 180
                 
         elif tool == "scythe":
             # Clear grass
@@ -379,6 +455,20 @@ class FarmGame:
             self.notification_timer -= 1
             if self.notification_timer == 0:
                 self.notification = ""
+        
+        # Update quest notification
+        if self.quest_notification_timer > 0:
+            self.quest_notification_timer -= 1
+            if self.quest_notification_timer == 0:
+                self.last_completed_quest = None
+        
+        # Update quest for money (check periodically)
+        if hasattr(self, 'last_money_check'):
+            if self.player.money != self.last_money_check:
+                self.quest_system.update_quest("money", "total", self.player.money)
+                self.last_money_check = self.player.money
+        else:
+            self.last_money_check = self.player.money
                 
     def draw(self):
         """Draw everything"""
@@ -472,6 +562,14 @@ class FarmGame:
         # Draw crafting menu
         self.crafting.draw_menu(self.screen, self.inventory, self.screen_width, self.screen_height)
         
+        # Draw quest tab
+        self.quest_system.draw_quest_tab(self.screen, self.screen_width, self.screen_height)
+        
+        # Draw quest notification
+        if self.last_completed_quest and self.quest_notification_timer > 0:
+            self.quest_system.draw_quest_notification(self.last_completed_quest, 
+                                                     self.screen, self.screen_width, self.screen_height)
+        
         # Draw shop menus
         if self.shopkeeper.shop_mode:
             self.shopkeeper.draw_shop_menu(self.screen, self.screen_width, self.screen_height)
@@ -528,7 +626,8 @@ class FarmGame:
                 "day": self.time_system.day,
                 "season": self.time_system.season
             },
-            "plots": self.plot_system.save_data()
+            "plots": self.plot_system.save_data(),
+            "quests": self.quest_system.save_data()
         }
         
         try:
@@ -564,6 +663,10 @@ class FarmGame:
             # Restore plots
             if "plots" in save_data:
                 self.plot_system.load_data(save_data["plots"])
+            
+            # Restore quests
+            if "quests" in save_data:
+                self.quest_system.load_data(save_data["quests"])
             
             print("Game loaded!")
             return True

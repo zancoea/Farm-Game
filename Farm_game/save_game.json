@@ -1,11 +1,11 @@
 {
   "player": {
     "pos": [
-      575,
-      338
+      334,
+      207
     ],
-    "money": 2290,
-    "energy": 100.02159568083968
+    "money": 300,
+    "energy": 100.0107978404073
   },
   "inventory": {
     "wheat_seed": 1,
@@ -18,8 +18,8 @@
     "corn": 0,
     "wood": 75,
     "stone": 0,
-    "milk": 4,
-    "egg": 2,
+    "milk": 0,
+    "egg": 3,
     "scarecrow": 1,
     "fence": 4
   },
@@ -31,12 +31,28 @@
     "scarecrow"
   ],
   "time": {
-    "time": 1.9331133773245377,
-    "day": 812,
+    "time": 10.889502099579607,
+    "day": 816,
     "season": "Spring"
   },
   "plots": {
     "claimed_plots": [],
     "locked_plots": []
+  },
+  "quests": {
+    "active": [
+      "welcome"
+    ],
+    "completed": [],
+    "progress": {
+      "welcome": [
+        {
+          "current": 0
+        },
+        {
+          "current": 0
+        }
+      ]
+    }
   }
 }
