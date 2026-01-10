@@ -35,11 +35,21 @@ class FarmGame:
         self.world = World()
         self.world.create_default_map()
         
-        # Animals
+        # Animals - NOW WITH MORE VARIETY!
         self.animals = pygame.sprite.Group()
+        # Original animals
         self.animals.add(Animal((300, 300), "chicken"))
         self.animals.add(Animal((350, 320), "chicken"))
         self.animals.add(Animal((500, 400), "cow"))
+        self.animals.add(Animal((280, 250), "sheep"))
+        # New animals
+        self.animals.add(Animal((400, 350), "pig"))
+        self.animals.add(Animal((450, 280), "goat"))
+        self.animals.add(Animal((280, 380), "duck"))
+        self.animals.add(Animal((550, 320), "rabbit"))
+        self.animals.add(Animal((320, 450), "horse"))
+        self.animals.add(Animal((480, 450), "llama"))
+        self.animals.add(Animal((380, 280), "turkey"))
         
         # NPCs
         self.npcs = pygame.sprite.Group()
@@ -227,10 +237,8 @@ class FarmGame:
                     if self.crafting.handle_click(mouse_pos, self.inventory, self.screen_width, self.screen_height):
                         self.show_notification("Item crafted!")
                         
-                        # Track crafted item for quests (get last crafted item name)
-                        # Check what was just crafted by looking at inventory changes
+                        # Track crafted item for quests
                         for recipe_name in self.crafting.recipes:
-                            # Simple tracking - update quest for fence crafting
                             completed = self.quest_system.update_quest("craft", recipe_name, 1)
                             if completed:
                                 self.last_completed_quest = completed
@@ -314,7 +322,7 @@ class FarmGame:
             product, value = animal.collect_product()
             if product:
                 self.inventory.add_item(product, 1)
-                self.show_notification(f"Collected {product}! You can now feed the animal again!")
+                self.show_notification(f"Collected {product.replace('_', ' ')}! You can now feed the animal again!")
                 
                 # Update quests
                 completed = self.quest_system.update_quest("collect", product, 1)
@@ -523,7 +531,7 @@ class FarmGame:
             self.draw_interaction_prompt_world(self.world_surface,
                                               self.nearby_animal.rect.centerx, 
                                               self.nearby_animal.rect.top - 30,
-                                              f"Press [F] to {action}")
+                                              f"Press [F] to {action} {self.nearby_animal.animal_type.title()}")
         
         # Draw claimable/sellable plot hint (only if inventory not open) - in world space
         if not self.inventory.show_full_inventory:

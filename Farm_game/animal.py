@@ -12,7 +12,7 @@ class Animal(pygame.sprite.Sprite):
             "product_value": 25,
             "speed": 1.2,
             "wander_radius": 100,
-            "feed_cooldown": 180  # 3 seconds at 60 FPS
+            "feed_cooldown": 180
         },
         "cow": {
             "color": (139, 90, 43),
@@ -32,6 +32,76 @@ class Animal(pygame.sprite.Sprite):
             "product_value": 30,
             "speed": 1.0,
             "wander_radius": 90,
+            "feed_cooldown": 180
+        },
+        "pig": {
+            "color": (255, 192, 203),
+            "size": (26, 22),
+            "product": "truffle",
+            "product_time": 150,
+            "product_value": 50,
+            "speed": 0.9,
+            "wander_radius": 85,
+            "feed_cooldown": 180
+        },
+        "goat": {
+            "color": (210, 180, 140),
+            "size": (24, 22),
+            "product": "cheese",
+            "product_time": 100,
+            "product_value": 40,
+            "speed": 1.1,
+            "wander_radius": 95,
+            "feed_cooldown": 180
+        },
+        "duck": {
+            "color": (255, 255, 100),
+            "size": (18, 16),
+            "product": "duck_egg",
+            "product_time": 70,
+            "product_value": 28,
+            "speed": 1.3,
+            "wander_radius": 110,
+            "feed_cooldown": 180
+        },
+        "rabbit": {
+            "color": (200, 200, 200),
+            "size": (16, 14),
+            "product": "rabbit_foot",
+            "product_time": 45,
+            "product_value": 35,
+            "speed": 1.5,
+            "wander_radius": 120,
+            "feed_cooldown": 180
+        },
+        "horse": {
+            "color": (101, 67, 33),
+            "size": (32, 28),
+            "product": "horseshoe",
+            "product_time": 200,
+            "product_value": 60,
+            "speed": 0.7,
+            "wander_radius": 70,
+            "feed_cooldown": 180
+        },
+        "llama": {
+            "color": (220, 200, 180),
+            "size": (26, 30),
+            "product": "llama_wool",
+            "product_time": 130,
+            "product_value": 45,
+            "speed": 0.85,
+            "wander_radius": 80,
+            "feed_cooldown": 180
+        },
+        "turkey": {
+            "color": (160, 82, 45),
+            "size": (22, 20),
+            "product": "turkey_feather",
+            "product_time": 90,
+            "product_value": 32,
+            "speed": 1.0,
+            "wander_radius": 100,
             "feed_cooldown": 180
         }
     }
@@ -72,9 +142,8 @@ class Animal(pygame.sprite.Sprite):
         self.movement_state = random.choice(["wander", "pause", "roam"])
         self.state_timer = random.randint(120, 300)
         
-        # Animal state system - proper cycle
-        # States: "has_product" -> "needs_feed" -> "cooldown" -> "producing" -> "has_product"
-        self.state = "has_product"  # Start with product ready
+        # Animal state system
+        self.state = "has_product"
         self.product_timer = 0
         self.feed_cooldown_timer = 0
         self.feed_cooldown_duration = self.data["feed_cooldown"]
@@ -132,6 +201,123 @@ class Animal(pygame.sprite.Sprite):
             # Legs
             for x in [6, 10, 14, 18]:
                 pygame.draw.line(self.image, (50, 50, 50), (x, 20), (x, 18), 2)
+        
+        elif self.animal_type == "pig":
+            # Body
+            pygame.draw.ellipse(self.image, color, (3, 8, 20, 14))
+            # Head
+            pygame.draw.circle(self.image, color, (20, 12), 6)
+            # Snout
+            pygame.draw.ellipse(self.image, (255, 182, 193), (21, 11, 4, 3))
+            # Eye
+            pygame.draw.circle(self.image, BLACK, (20, 10), 1)
+            # Ear
+            pygame.draw.polygon(self.image, color, [(18, 8), (16, 6), (18, 6)])
+            # Tail (curly)
+            pygame.draw.arc(self.image, color, (1, 10, 6, 6), 0, 3.14, 2)
+            # Legs
+            for x in [7, 11, 15, 19]:
+                pygame.draw.line(self.image, color, (x, 22), (x, 20), 2)
+        
+        elif self.animal_type == "goat":
+            # Body
+            pygame.draw.ellipse(self.image, color, (2, 8, 20, 12))
+            # Head
+            pygame.draw.circle(self.image, color, (18, 10), 5)
+            # Horns
+            pygame.draw.line(self.image, (139, 69, 19), (16, 8), (14, 4), 2)
+            pygame.draw.line(self.image, (139, 69, 19), (20, 8), (22, 4), 2)
+            # Eye
+            pygame.draw.circle(self.image, BLACK, (18, 9), 1)
+            # Beard
+            pygame.draw.line(self.image, (100, 80, 60), (18, 13), (18, 16), 2)
+            # Legs
+            for x in [6, 10, 14, 18]:
+                pygame.draw.line(self.image, color, (x, 20), (x, 18), 2)
+        
+        elif self.animal_type == "duck":
+            # Body
+            pygame.draw.ellipse(self.image, color, (2, 6, 14, 10))
+            # Head
+            pygame.draw.circle(self.image, color, (13, 5), 4)
+            # Bill
+            pygame.draw.polygon(self.image, (255, 165, 0), 
+                              [(15, 5), (18, 4), (18, 6)])
+            # Eye
+            pygame.draw.circle(self.image, BLACK, (13, 4), 1)
+            # Wing
+            pygame.draw.ellipse(self.image, (200, 200, 50), (4, 8, 8, 5))
+            # Legs (webbed)
+            pygame.draw.line(self.image, (255, 165, 0), (6, 16), (6, 14), 2)
+            pygame.draw.line(self.image, (255, 165, 0), (10, 16), (10, 14), 2)
+        
+        elif self.animal_type == "rabbit":
+            # Body
+            pygame.draw.ellipse(self.image, color, (2, 6, 12, 8))
+            # Head
+            pygame.draw.circle(self.image, color, (11, 6), 4)
+            # Long ears
+            pygame.draw.ellipse(self.image, color, (9, 0, 3, 6))
+            pygame.draw.ellipse(self.image, color, (13, 0, 3, 6))
+            # Eye
+            pygame.draw.circle(self.image, BLACK, (11, 5), 1)
+            # Nose
+            pygame.draw.circle(self.image, (255, 192, 203), (11, 7), 1)
+            # Cotton tail
+            pygame.draw.circle(self.image, WHITE, (3, 10), 2)
+        
+        elif self.animal_type == "horse":
+            # Body
+            pygame.draw.ellipse(self.image, color, (4, 10, 24, 16))
+            # Neck
+            pygame.draw.rect(self.image, color, (22, 6, 6, 10))
+            # Head
+            pygame.draw.ellipse(self.image, color, (24, 4, 8, 8))
+            # Mane
+            pygame.draw.polygon(self.image, (50, 30, 20), 
+                              [(24, 6), (26, 4), (28, 6)])
+            # Eye
+            pygame.draw.circle(self.image, BLACK, (28, 7), 1)
+            # Legs
+            for x in [8, 12, 18, 22]:
+                pygame.draw.line(self.image, color, (x, 26), (x, 24), 3)
+        
+        elif self.animal_type == "llama":
+            # Body
+            pygame.draw.ellipse(self.image, color, (3, 14, 20, 12))
+            # Long neck
+            pygame.draw.rect(self.image, color, (18, 6, 5, 12))
+            # Head
+            pygame.draw.ellipse(self.image, color, (18, 4, 8, 8))
+            # Ears (upright)
+            pygame.draw.polygon(self.image, color, [(20, 4), (19, 2), (21, 2)])
+            pygame.draw.polygon(self.image, color, [(24, 4), (23, 2), (25, 2)])
+            # Eye
+            pygame.draw.circle(self.image, BLACK, (21, 6), 1)
+            # Fluffy top
+            pygame.draw.circle(self.image, (240, 220, 200), (13, 12), 6)
+            # Legs
+            for x in [7, 11, 15, 19]:
+                pygame.draw.line(self.image, color, (x, 26), (x, 24), 2)
+        
+        elif self.animal_type == "turkey":
+            # Body
+            pygame.draw.ellipse(self.image, color, (3, 8, 16, 12))
+            # Head/Neck
+            pygame.draw.line(self.image, color, (15, 12), (18, 8), 3)
+            pygame.draw.circle(self.image, (200, 100, 100), (18, 7), 3)
+            # Eye
+            pygame.draw.circle(self.image, BLACK, (18, 6), 1)
+            # Wattle (red thing)
+            pygame.draw.circle(self.image, RED, (18, 9), 2)
+            # Tail fan
+            for i in range(5):
+                angle_offset = (i - 2) * 0.3
+                x = int(5 + 6 * (1 - abs(i - 2) * 0.2))
+                pygame.draw.circle(self.image, (100, 60, 30), (x, 10), 3)
+            # Legs
+            pygame.draw.line(self.image, (255, 165, 0), (9, 20), (9, 18), 2)
+            pygame.draw.line(self.image, (255, 165, 0), (13, 20), (13, 18), 2)
     
     def choose_new_direction(self):
         """Choose a new random direction"""
@@ -146,7 +332,6 @@ class Animal(pygame.sprite.Sprite):
                 if self.direction.length() > 0:
                     self.direction = self.direction.normalize()
         else:
-            angle = random.uniform(0, 2 * 3.14159)
             self.direction = pygame.math.Vector2(
                 random.uniform(-1, 1),
                 random.uniform(-1, 1)
@@ -184,21 +369,16 @@ class Animal(pygame.sprite.Sprite):
         
         # Animal state machine
         if self.state == "cooldown":
-            # Waiting for cooldown to finish after feeding
             self.feed_cooldown_timer -= 1
             if self.feed_cooldown_timer <= 0:
-                # Cooldown finished, start producing
                 self.state = "producing"
                 self.product_timer = 0
                 
         elif self.state == "producing":
-            # Producing the product
             self.product_timer += dt
             if self.product_timer >= self.data["product_time"]:
-                # Product ready!
                 self.state = "has_product"
                 self.product_timer = 0
-                # Brief pause when product is ready
                 self.is_paused = True
                 self.pause_duration = 30
                 self.pause_timer = 0
@@ -225,11 +405,11 @@ class Animal(pygame.sprite.Sprite):
                     self.pause_timer = 0
                     self.speed = 0
             
-            # Move using float position for smooth movement
+            # Move using float position
             self.position.x += self.direction.x * self.speed
             self.position.y += self.direction.y * self.speed
             
-            # Update rect position from float position
+            # Update rect position
             self.rect.centerx = int(self.position.x)
             self.rect.centery = int(self.position.y)
             
@@ -254,13 +434,11 @@ class Animal(pygame.sprite.Sprite):
                     self.choose_new_direction()
             
     def feed(self):
-        """Feed the animal - only when in needs_feed state"""
+        """Feed the animal"""
         if self.state == "needs_feed":
-            # Start cooldown
             self.state = "cooldown"
             self.feed_cooldown_timer = self.feed_cooldown_duration
             self.happiness = min(100, self.happiness + 20)
-            # Brief pause when being fed
             self.is_paused = True
             self.pause_duration = 20
             self.pause_timer = 0
@@ -268,9 +446,8 @@ class Animal(pygame.sprite.Sprite):
         return False
         
     def collect_product(self):
-        """Collect animal product - only when in has_product state"""
+        """Collect animal product"""
         if self.state == "has_product":
-            # Transition to needs_feed state
             self.state = "needs_feed"
             return self.data["product"], self.data["product_value"]
         return None, 0
@@ -300,14 +477,12 @@ class Animal(pygame.sprite.Sprite):
     def draw_status(self, surface):
         """Draw status indicators above animal"""
         if self.state == "has_product":
-            # Draw exclamation mark when product ready
             pygame.draw.circle(surface, YELLOW, 
                              (self.rect.centerx, self.rect.top - 10), 4)
             pygame.draw.circle(surface, YELLOW, 
                              (self.rect.centerx, self.rect.top - 16), 2)
                              
         elif self.state == "needs_feed":
-            # Draw heart when hungry and needs feeding
             heart_x = self.rect.centerx
             heart_y = self.rect.top - 12
             pygame.draw.circle(surface, RED, (heart_x - 3, heart_y), 3)
@@ -319,19 +494,12 @@ class Animal(pygame.sprite.Sprite):
             ])
             
         elif self.state == "cooldown":
-            # Draw clock icon when on cooldown (digesting)
             clock_x = self.rect.centerx
             clock_y = self.rect.top - 12
             pygame.draw.circle(surface, GRAY, (clock_x, clock_y), 4)
             pygame.draw.circle(surface, WHITE, (clock_x, clock_y), 4, 1)
-            # Clock hand
             pygame.draw.line(surface, WHITE, (clock_x, clock_y), (clock_x, clock_y - 3), 1)
             
         elif self.state == "producing":
-            # Draw animated dots when producing
-            import time
-            dots = int(time.time() * 2) % 4  # 0-3 dots animation
-            dot_str = "." * dots
-            # Draw small progress indicator
             pygame.draw.circle(surface, (100, 200, 100), 
                              (self.rect.centerx, self.rect.top - 10), 3)
