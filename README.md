@@ -25,3 +25,6 @@ Resizable Game Window <br>
 
 ## 01/04/26
 Added Quest System <br>
+
+## 01/10/26
+Inreased animal count
